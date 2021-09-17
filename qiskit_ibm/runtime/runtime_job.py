@@ -28,7 +28,7 @@ from .constants import API_TO_JOB_ERROR_MESSAGE, API_TO_JOB_STATUS
 from .exceptions import RuntimeJobFailureError, RuntimeInvalidStateError, QiskitRuntimeError
 from .program.result_decoder import ResultDecoder
 from ..api.clients import RuntimeClient, RuntimeWebsocketClient, WebsocketClientCloseCode
-from ..exceptions import IBMQError
+from ..exceptions import IBMError
 from ..api.exceptions import RequestsApiError
 from ..utils.converters import utc_to_local
 from ..credentials import Credentials
@@ -84,7 +84,8 @@ class RuntimeJob:
             params: Optional[Dict] = None,
             creation_date: Optional[str] = None,
             user_callback: Optional[Callable] = None,
-            result_decoder: Type[ResultDecoder] = ResultDecoder
+            result_decoder: Type[ResultDecoder] = ResultDecoder,
+            image: Optional[str] = ""
     ) -> None:
         """RuntimeJob constructor.
 
@@ -98,6 +99,7 @@ class RuntimeJob:
             creation_date: Job creation date, in UTC.
             user_callback: User callback function.
             result_decoder: A :class:`ResultDecoder` subclass used to decode job results.
+            image: Runtime image used for this job: image_name:tag.
         """
         self._job_id = job_id
         self._backend = backend
@@ -109,6 +111,7 @@ class RuntimeJob:
         self._status = JobStatus.INITIALIZING
         self._error_message = None  # type: Optional[str]
         self._result_decoder = result_decoder
+        self._image = image
 
         # Used for streaming
         self._ws_client_future = None  # type: Optional[futures.Future]
@@ -282,12 +285,12 @@ class RuntimeJob:
             job_response: Job response from runtime API.
 
         Raises:
-            IBMQError: If an unknown status is returned from the server.
+            IBMError: If an unknown status is returned from the server.
         """
         try:
             self._status = API_TO_JOB_STATUS[job_response['status'].upper()]
         except KeyError:
-            raise IBMQError(f"Unknown status: {job_response['status']}")
+            raise IBMError(f"Unknown status: {job_response['status']}")
 
     def _set_error_message(self, job_response: Dict) -> None:
         """Set error message if the job failed.
@@ -384,6 +387,16 @@ class RuntimeJob:
             Backend used for the job.
         """
         return self._backend
+
+    @property
+    def image(self) -> str:
+        """Return the runtime image used for the job.
+
+        Returns:
+            Runtime image: image_name:tag or "" if the default
+            image is used.
+        """
+        return self._image
 
     @property
     def inputs(self) -> Dict:
