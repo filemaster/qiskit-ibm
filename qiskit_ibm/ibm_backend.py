@@ -330,7 +330,7 @@ class IBMBackend(Backend):
             job_tags: Optional[List[str]] = None,
             experiment_id: Optional[str] = None,
             live_data_enabled: Optional[bool] = None
-    ) -> IBMQJob:
+    ) -> IBMJob:
         """Submit the Qobj to the backend.
 
         Args:
