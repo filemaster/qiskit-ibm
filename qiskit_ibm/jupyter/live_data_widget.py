@@ -178,7 +178,7 @@ class LiveDataVisualization:
         sjob_title = self.create_title("Job selection")
         label = widgets.Label(value="Job:")
         self.jobs_combo = self.jobs_combobox()
-        layout = widgets.Layout(overflow_y="hidden", min_height="32px")
+        layout = widgets.Layout(overflow_y="hidden", min_height="32px", margin="8px 0 0 0")
         combo_view = widgets.HBox(children=(label, self.jobs_combo), layout=layout)
 
         # Jobs info
