@@ -251,7 +251,7 @@ class LiveDataVisualization:
             (Ipywidget): HTML widget used as title
 
         """
-        margin = "34px" if extra_space is True else "0px"
+        margin = "34px" if extra_space is True else "8px"
         content = f"<h5 style='margin-top: {margin};margin-bottom: 8px;'><b>{title}</b></h5>"
         return widgets.HTML(value=content)
 
