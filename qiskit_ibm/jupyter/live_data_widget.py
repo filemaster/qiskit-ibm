@@ -178,7 +178,7 @@ class LiveDataVisualization:
         sjob_title = self.create_title("Job selection")
         label = widgets.Label(value="Job:")
         self.jobs_combo = self.jobs_combobox()
-        layout = widgets.Layout(overflow_y="hidden", min_height="32px", margin="8px 0 0 0")
+        layout = widgets.Layout(overflow_y="hidden", min_height="32px")
         combo_view = widgets.HBox(children=(label, self.jobs_combo), layout=layout)
 
         # Jobs info
@@ -252,7 +252,7 @@ class LiveDataVisualization:
 
         """
         margin = "34px" if extra_space is True else "0px"
-        content = f"<h5 style='margin-top: {margin};'><b>{title}</b></h5>"
+        content = f"<h5 style='margin-top: {margin};margin-bottom: 8px;'><b>{title}</b></h5>"
         return widgets.HTML(value=content)
 
     # Data management
