@@ -22,7 +22,7 @@ from io import BytesIO
 from base64 import b64encode
 import logging
 import pytz
-import websockets
+import websocket
 import ipywidgets as widgets
 import numpy as np
 from qiskit.providers.jobstatus import JobStatus
@@ -290,15 +290,16 @@ class LiveDataVisualization:
         this_ws = None
         try:
             # pylint: disable=E1101
-            async with websockets.connect(uri, max_size=70000000, ssl=ssl_context) as ws_connection:
+            async with websocket.connect(uri, max_size=70000000, ssl=ssl_context) as ws_connection:
                 self.ws_connection = ws_connection
                 this_ws = ws_connection
-                await ws_connection.send(
+                await asyncio.get_event_loop().run_in_executor(None, ws_connection.send(
                     json.dumps(
                         {
                             "type": "authentication",
                             "data": self.backend.provider().credentials.access_token,
                         }
+                        )
                     )
                 )
 
