@@ -304,7 +304,7 @@ class LiveDataVisualization:
                 )
 
                 # Wait until connected
-                await asyncio.get_event_loop().run_in_executor(None, ws_connection.recv)
+                await asyncio.get_event_loop().run_in_executor(None, ws_connection.recv())
 
                 async for message in ws_connection:
                     logger.debug("RECEIVE PACKAGE")
