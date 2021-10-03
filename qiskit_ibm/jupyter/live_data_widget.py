@@ -290,7 +290,7 @@ class LiveDataVisualization:
         this_ws = None
         try:
             # pylint: disable=E1101
-            async with websocket.connect(uri, max_size=70000000, ssl=ssl_context) as ws_connection:
+            async with websocket.WebSocket().connect(uri, max_size=70000000, ssl=ssl_context) as ws_connection:
                 self.ws_connection = ws_connection
                 this_ws = ws_connection
                 await asyncio.get_event_loop().run_in_executor(None, ws_connection.send(
