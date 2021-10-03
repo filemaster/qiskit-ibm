@@ -304,7 +304,7 @@ class LiveDataVisualization:
                 )
 
                 # Wait until connected
-                await ws_connection.recv()
+                await asyncio.get_event_loop().run_in_executor(None, ws_connection.recv)
 
                 async for message in ws_connection:
                     logger.debug("RECEIVE PACKAGE")
@@ -325,8 +325,7 @@ class LiveDataVisualization:
                             self.job_information_view.update_progress_bar_widget(
                                 max_value=max_value, value=value
                             )
-
-                        await ws_connection.send(json.dumps({"type": "client", "data": "release"}))
+                        await asyncio.get_event_loop().run_in_executor(None, ws_connection.send(json.dumps({"type": "client", "data": "release"})))
 
         except BaseException as error:
             logger.debug(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
