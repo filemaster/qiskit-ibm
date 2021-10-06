@@ -27,7 +27,7 @@ import ipywidgets as widgets
 import numpy as np
 from qiskit.providers.jobstatus import JobStatus
 from sklearn.decomposition import PCA
-
+from IPython.core.debugger import set_trace
 
 # PLOTS
 ENABLE_LEVEL_0 = False
@@ -290,21 +290,21 @@ class LiveDataVisualization:
         this_ws = None
         try:
             # pylint: disable=E1101
-            async with websocket.WebSocket().connect(uri, max_size=70000000, ssl=ssl_context) as ws_connection:
+            async with websocket.WebSocket().connect(uri) as ws_connection:
                 self.ws_connection = ws_connection
                 this_ws = ws_connection
-                await asyncio.get_event_loop().run_in_executor(None, ws_connection.send(
+                set_trace(print("Unable to connect!"))
+                await ws_connection.send(
                     json.dumps(
                         {
                             "type": "authentication",
                             "data": self.backend.provider().credentials.access_token,
                         }
-                        )
                     )
                 )
 
                 # Wait until connected
-                await asyncio.get_event_loop().run_in_executor(None, ws_connection.recv())
+                await ws_connection.recv()
 
                 async for message in ws_connection:
                     logger.debug("RECEIVE PACKAGE")
@@ -325,9 +325,11 @@ class LiveDataVisualization:
                             self.job_information_view.update_progress_bar_widget(
                                 max_value=max_value, value=value
                             )
-                        await asyncio.get_event_loop().run_in_executor(None, ws_connection.send(json.dumps({"type": "client", "data": "release"})))
+
+                        await ws_connection.send(json.dumps({"type": "client", "data": "release"}))
 
         except BaseException as error:
+            set_trace(print("Exception Occured"))
             logger.debug(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
             if self.ws_connection == this_ws:
                 logger.debug(f"🤖 Trying to reconnect ws@job_id #{self.selected_job.job_id()}...")
