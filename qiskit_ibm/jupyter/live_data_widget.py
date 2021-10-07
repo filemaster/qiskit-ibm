@@ -16,13 +16,14 @@ from enum import Enum
 from datetime import datetime
 import asyncio
 import json
+from socket import create_connection
 import ssl
 import zlib
 from io import BytesIO
 from base64 import b64encode
 import logging
 import pytz
-import websocket
+from websocket import create_connection
 import ipywidgets as widgets
 import numpy as np
 from qiskit.providers.jobstatus import JobStatus
@@ -290,43 +291,40 @@ class LiveDataVisualization:
         this_ws = None
         try:
             # pylint: disable=E1101
-            async with websocket.WebSocket().connect(uri) as ws_connection:
-                self.ws_connection = ws_connection
-                this_ws = ws_connection
-                set_trace(print("Unable to connect!"))
-                await ws_connection.send(
-                    json.dumps(
-                        {
-                            "type": "authentication",
-                            "data": self.backend.provider().credentials.access_token,
-                        }
-                    )
+            ws_connection = create_connection(uri, sslopt={"cert_reqs": ssl.CERT_NONE})
+            self.ws_connection = ws_connection
+            this_ws = ws_connection
+            ws_connection.send(
+                json.dumps(
+                    {
+                        "type": "authentication",
+                        "data": self.backend.provider().credentials.access_token,
+                    }
                 )
+            )
+            ws_connection.recv()
 
-                # Wait until connected
-                await ws_connection.recv()
+            for message in ws_connection:
+                logger.debug("RECEIVE PACKAGE")
+                compressed_msg = json.loads(message)
+                if compressed_msg["type"] == "live-data":
+                    logger.debug(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
+                    result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
+                    # Check result type. In the last package it is a list instead a dict.
+                    if self.ldata_details:
+                        self.ldata_details.draw_data(result)
+                        self.ldata_details.show()
+                    if self.job_information_view:
+                        value = result.get(
+                            self.ldata_details._selected_channel,
+                            self.ldata_details._channels[0],
+                        ).get("rounds", 0)
+                        max_value = result.get("total_rounds")
+                        self.job_information_view.update_progress_bar_widget(
+                            max_value=max_value, value=value
+                        )
 
-                async for message in ws_connection:
-                    logger.debug("RECEIVE PACKAGE")
-                    compressed_msg = json.loads(message)
-                    if compressed_msg["type"] == "live-data":
-                        logger.debug(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
-                        result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
-                        # Check result type. In the last package it is a list instead a dict.
-                        if self.ldata_details:
-                            self.ldata_details.draw_data(result)
-                            self.ldata_details.show()
-                        if self.job_information_view:
-                            value = result.get(
-                                self.ldata_details._selected_channel,
-                                self.ldata_details._channels[0],
-                            ).get("rounds", 0)
-                            max_value = result.get("total_rounds")
-                            self.job_information_view.update_progress_bar_widget(
-                                max_value=max_value, value=value
-                            )
-
-                        await ws_connection.send(json.dumps({"type": "client", "data": "release"}))
+                    ws_connection.send(json.dumps({"type": "client", "data": "release"}))
 
         except BaseException as error:
             set_trace(print("Exception Occured"))
