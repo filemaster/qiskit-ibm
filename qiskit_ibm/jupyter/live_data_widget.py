@@ -16,19 +16,17 @@ from enum import Enum
 from datetime import datetime
 import asyncio
 import json
-from socket import create_connection
 import ssl
 import zlib
 from io import BytesIO
 from base64 import b64encode
 import logging
 import pytz
-from websocket import create_connection
+from websocket import WebSocketApp
 import ipywidgets as widgets
 import numpy as np
 from qiskit.providers.jobstatus import JobStatus
 from sklearn.decomposition import PCA
-from IPython.core.debugger import set_trace
 
 # PLOTS
 ENABLE_LEVEL_0 = False
@@ -275,6 +273,41 @@ class LiveDataVisualization:
         decompressed_data = json.loads(decompressed_data)
         return decompressed_data
 
+    def on_open(self, ws):
+        print("Sending open")
+        ws.send(
+            json.dumps(
+                {
+                    "type": "authentication",
+                    "data": self.backend.provider().credentials.access_token,
+                }
+            )
+        )
+        print("open sent")
+
+    def on_message(self, ws, message):
+        print("RECEIVE PACKAGE")
+        compressed_msg = json.loads(message)
+        if compressed_msg["type"] == "live-data":
+            print(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
+            result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
+            # Check result type. In the last package it is a list instead a dict.
+            if self.ldata_details:
+                self.ldata_details.draw_data(result)
+                self.ldata_details.show()
+            if self.job_information_view:
+                value = result.get(
+                    self.ldata_details._selected_channel,
+                    self.ldata_details._channels[0],
+                ).get("rounds", 0)
+                max_value = result.get("total_rounds")
+                self.job_information_view.update_progress_bar_widget(
+                    max_value=max_value, value=value
+                )
+
+            ws.send(json.dumps({"type": "client", "data": "release"}))
+        print("End on_message")
+
     # Websockets
     async def init_websockets(self) -> None:
         """Init Websockets using Websockets library
@@ -286,51 +319,24 @@ class LiveDataVisualization:
         """
         uri: str = (f"{self.backend.provider().credentials.websockets_url}"
                     f"jobs/{self.selected_job.job_id()}/live_data")
-        logger.debug(f"🔌 ws@job_id #{self.selected_job.job_id()} connecting to {uri}")
-        ssl_context = ssl.SSLContext()
+        print(f"🔌 ws@job_id #{self.selected_job.job_id()} connecting to {uri}")
         this_ws = None
         try:
             # pylint: disable=E1101
-            ws_connection = create_connection(uri, sslopt={"cert_reqs": ssl.CERT_NONE})
+            print("Opening WebsocketApp")
+            ws_connection = WebSocketApp(uri, on_open=self.on_open, on_message=self.on_message)
             self.ws_connection = ws_connection
             this_ws = ws_connection
-            ws_connection.send(
-                json.dumps(
-                    {
-                        "type": "authentication",
-                        "data": self.backend.provider().credentials.access_token,
-                    }
-                )
-            )
-            ws_connection.recv()
-
-            for message in ws_connection:
-                logger.debug("RECEIVE PACKAGE")
-                compressed_msg = json.loads(message)
-                if compressed_msg["type"] == "live-data":
-                    logger.debug(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
-                    result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
-                    # Check result type. In the last package it is a list instead a dict.
-                    if self.ldata_details:
-                        self.ldata_details.draw_data(result)
-                        self.ldata_details.show()
-                    if self.job_information_view:
-                        value = result.get(
-                            self.ldata_details._selected_channel,
-                            self.ldata_details._channels[0],
-                        ).get("rounds", 0)
-                        max_value = result.get("total_rounds")
-                        self.job_information_view.update_progress_bar_widget(
-                            max_value=max_value, value=value
-                        )
-
-                    ws_connection.send(json.dumps({"type": "client", "data": "release"}))
+            print("Connection established")
+            def _run_forever():
+                return ws_connection.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+            await asyncio.get_event_loop().run_in_executor(None, _run_forever)
+            print("Running forever")
 
         except BaseException as error:
-            set_trace(print("Exception Occured"))
-            logger.debug(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
+            print(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
             if self.ws_connection == this_ws:
-                logger.debug(f"🤖 Trying to reconnect ws@job_id #{self.selected_job.job_id()}...")
+                print(f"🤖 Trying to reconnect ws@job_id #{self.selected_job.job_id()}...")
                 await self.init_websockets()
 
     def disconnect_ws(self) -> None:
@@ -339,7 +345,7 @@ class LiveDataVisualization:
         if self.ws_task:
             self.ws_task.cancel()
         if self.ws_connection:
-            asyncio.ensure_future(self.ws_connection.close())
+            self.ws_connection.close()
             self.ws_connection = None
 
     async def update_job_loop(self) -> None:
@@ -356,7 +362,7 @@ class LiveDataVisualization:
                             self.jobs[self.job_ids.index(self.jobs_combo.value)]
                         )
                     else:
-                        logger.debug(f"changing job to the new received: {self.job_ids[0]}")
+                        print(f"changing job to the new received: {self.job_ids[0]}")
                         self.jobs_combo.value = self.job_ids[0]
                         self.job_information_view.set_job(self.jobs[0])  # new job arrived, take it
                 else:
