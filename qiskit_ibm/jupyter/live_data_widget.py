@@ -273,9 +273,17 @@ class LiveDataVisualization:
         decompressed_data = json.loads(decompressed_data)
         return decompressed_data
 
-    def on_open(self, ws):
-        print("Sending open")
-        ws.send(
+    # Websockets
+    def on_open(self, ws_connection) -> None:
+        """Send the opening message
+        
+        Args:
+
+            ws_connection (object): websocket connection
+
+        """
+        logger.debug("Sending opening message")
+        ws_connection.send(
             json.dumps(
                 {
                     "type": "authentication",
@@ -283,13 +291,22 @@ class LiveDataVisualization:
                 }
             )
         )
-        print("open sent")
+        logger.debug("opening message sent")
 
-    def on_message(self, ws, message):
-        print("RECEIVE PACKAGE")
+    def on_message(self, ws_connection, message) -> None:
+        """Process the received data
+
+        Args:
+
+            ws_connection (object): websocket connection
+
+            message (bytes) : received messages
+
+        """
+        logger.debug("RECEIVE PACKAGE")
         compressed_msg = json.loads(message)
         if compressed_msg["type"] == "live-data":
-            print(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
+            logger.debug(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
             result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
             # Check result type. In the last package it is a list instead a dict.
             if self.ldata_details:
@@ -305,10 +322,12 @@ class LiveDataVisualization:
                     max_value=max_value, value=value
                 )
 
-            ws.send(json.dumps({"type": "client", "data": "release"}))
-        print("End on_message")
+            ws_connection.send(json.dumps({"type": "client", "data": "release"}))
+        logger.debug("End on_message")
 
-    # Websockets
+    def _run_forever(self) -> None:
+        return self.ws_connection.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+
     async def init_websockets(self) -> None:
         """Init Websockets using Websockets library
 
@@ -319,24 +338,22 @@ class LiveDataVisualization:
         """
         uri: str = (f"{self.backend.provider().credentials.websockets_url}"
                     f"jobs/{self.selected_job.job_id()}/live_data")
-        print(f"🔌 ws@job_id #{self.selected_job.job_id()} connecting to {uri}")
+        logger.debug(f"🔌 ws@job_id #{self.selected_job.job_id()} connecting to {uri}")
         this_ws = None
         try:
             # pylint: disable=E1101
-            print("Opening WebsocketApp")
+            logger.debug("Opening WebsocketApp")
             ws_connection = WebSocketApp(uri, on_open=self.on_open, on_message=self.on_message)
             self.ws_connection = ws_connection
             this_ws = ws_connection
-            print("Connection established")
-            def _run_forever():
-                return ws_connection.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
-            await asyncio.get_event_loop().run_in_executor(None, _run_forever)
-            print("Running forever")
+            logger.debug("Connection established")
+            await asyncio.get_event_loop().run_in_executor(None, self._run_forever)
+            logger.debug("Running forever")
 
         except BaseException as error:
-            print(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
+            logger.debug(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
             if self.ws_connection == this_ws:
-                print(f"🤖 Trying to reconnect ws@job_id #{self.selected_job.job_id()}...")
+                logger.debug(f"🤖 Trying to reconnect ws@job_id #{self.selected_job.job_id()}...")
                 await self.init_websockets()
 
     def disconnect_ws(self) -> None:
@@ -362,7 +379,7 @@ class LiveDataVisualization:
                             self.jobs[self.job_ids.index(self.jobs_combo.value)]
                         )
                     else:
-                        print(f"changing job to the new received: {self.job_ids[0]}")
+                        logger.debug(f"changing job to the new received: {self.job_ids[0]}")
                         self.jobs_combo.value = self.job_ids[0]
                         self.job_information_view.set_job(self.jobs[0])  # new job arrived, take it
                 else:
