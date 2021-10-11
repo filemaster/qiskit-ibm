@@ -274,9 +274,9 @@ class LiveDataVisualization:
         return decompressed_data
 
     # Websockets
-    def on_open(self, ws_connection) -> None:
+    def ws_on_open(self, ws_connection) -> None:
         """Send the opening message
-        
+
         Args:
 
             ws_connection (object): websocket connection
@@ -293,7 +293,7 @@ class LiveDataVisualization:
         )
         logger.debug("opening message sent")
 
-    def on_message(self, ws_connection, message) -> None:
+    def ws_on_message(self, ws_connection, message) -> None:
         """Process the received data
 
         Args:
@@ -325,7 +325,10 @@ class LiveDataVisualization:
             ws_connection.send(json.dumps({"type": "client", "data": "release"}))
         logger.debug("End on_message")
 
-    def _run_forever(self) -> None:
+    def ws_run_forever(self) -> None:
+        """Calls the websocket-client run_forever method with parameters
+
+        """
         return self.ws_connection.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
 
     async def init_websockets(self) -> None:
@@ -343,11 +346,13 @@ class LiveDataVisualization:
         try:
             # pylint: disable=E1101
             logger.debug("Opening WebsocketApp")
-            ws_connection = WebSocketApp(uri, on_open=self.on_open, on_message=self.on_message)
+            ws_connection = WebSocketApp(uri,
+                                         on_open=self.ws_on_open,
+                                         on_message=self.ws_on_message)
             self.ws_connection = ws_connection
             this_ws = ws_connection
             logger.debug("Connection established")
-            await asyncio.get_event_loop().run_in_executor(None, self._run_forever)
+            await asyncio.get_event_loop().run_in_executor(None, self.ws_run_forever)
             logger.debug("Running forever")
 
         except BaseException as error:
