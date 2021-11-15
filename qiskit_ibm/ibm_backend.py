@@ -313,7 +313,10 @@ class IBMBackend(Backend):
 
         qobj = assemble(circuits, self, **run_config_dict)
 
-        return self._submit_job(qobj, job_name, job_tags, live_data_enabled)
+        return self._submit_job(qobj=qobj,
+                                job_name=job_name,
+                                job_tags=job_tags,
+                                live_data_enabled=live_data_enabled)
 
     def _get_run_config(self, **kwargs: Any) -> Dict:
         """Return the consolidated runtime configuration."""
