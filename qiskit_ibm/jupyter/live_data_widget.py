@@ -22,12 +22,11 @@ from io import BytesIO
 from base64 import b64encode
 import logging
 import pytz
-import websockets
+from websocket import WebSocketApp
 import ipywidgets as widgets
 import numpy as np
 from qiskit.providers.jobstatus import JobStatus
 from sklearn.decomposition import PCA
-
 
 # PLOTS
 ENABLE_LEVEL_0 = False
@@ -275,6 +274,63 @@ class LiveDataVisualization:
         return decompressed_data
 
     # Websockets
+    def ws_on_open(self, ws_connection) -> None:
+        """Send the opening message
+
+        Args:
+
+            ws_connection (object): websocket connection
+
+        """
+        logger.debug("Sending opening message")
+        ws_connection.send(
+            json.dumps(
+                {
+                    "type": "authentication",
+                    "data": self.backend.provider().credentials.access_token,
+                }
+            )
+        )
+        logger.debug("opening message sent")
+
+    def ws_on_message(self, ws_connection, message) -> None:
+        """Process the received data
+
+        Args:
+
+            ws_connection (object): websocket connection
+
+            message (bytes) : received messages
+
+        """
+        logger.debug("RECEIVE PACKAGE")
+        compressed_msg = json.loads(message)
+        if compressed_msg["type"] == "live-data":
+            logger.debug(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
+            result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
+            # Check result type. In the last package it is a list instead a dict.
+            if self.ldata_details:
+                self.ldata_details.draw_data(result)
+                self.ldata_details.show()
+            if self.job_information_view:
+                value = result.get(
+                    self.ldata_details._selected_channel,
+                    self.ldata_details._channels[0],
+                ).get("rounds", 0)
+                max_value = result.get("total_rounds")
+                self.job_information_view.update_progress_bar_widget(
+                    max_value=max_value, value=value
+                )
+
+            ws_connection.send(json.dumps({"type": "client", "data": "release"}))
+        logger.debug("End on_message")
+
+    def ws_run_forever(self) -> None:
+        """Calls the websocket-client run_forever method with parameters
+
+        """
+        return self.ws_connection.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+
     async def init_websockets(self) -> None:
         """Init Websockets using Websockets library
 
@@ -286,46 +342,18 @@ class LiveDataVisualization:
         uri: str = (f"{self.backend.provider().credentials.websockets_url}"
                     f"jobs/{self.selected_job.job_id()}/live_data")
         logger.debug(f"🔌 ws@job_id #{self.selected_job.job_id()} connecting to {uri}")
-        ssl_context = ssl.SSLContext()
         this_ws = None
         try:
             # pylint: disable=E1101
-            async with websockets.connect(uri, max_size=70000000, ssl=ssl_context) as ws_connection:
-                self.ws_connection = ws_connection
-                this_ws = ws_connection
-                await ws_connection.send(
-                    json.dumps(
-                        {
-                            "type": "authentication",
-                            "data": self.backend.provider().credentials.access_token,
-                        }
-                    )
-                )
-
-                # Wait until connected
-                await ws_connection.recv()
-
-                async for message in ws_connection:
-                    logger.debug("RECEIVE PACKAGE")
-                    compressed_msg = json.loads(message)
-                    if compressed_msg["type"] == "live-data":
-                        logger.debug(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
-                        result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
-                        # Check result type. In the last package it is a list instead a dict.
-                        if self.ldata_details:
-                            self.ldata_details.draw_data(result)
-                            self.ldata_details.show()
-                        if self.job_information_view:
-                            value = result.get(
-                                self.ldata_details._selected_channel,
-                                self.ldata_details._channels[0],
-                            ).get("rounds", 0)
-                            max_value = result.get("total_rounds")
-                            self.job_information_view.update_progress_bar_widget(
-                                max_value=max_value, value=value
-                            )
-
-                        await ws_connection.send(json.dumps({"type": "client", "data": "release"}))
+            logger.debug("Opening WebsocketApp")
+            ws_connection = WebSocketApp(uri,
+                                         on_open=self.ws_on_open,
+                                         on_message=self.ws_on_message)
+            self.ws_connection = ws_connection
+            this_ws = ws_connection
+            logger.debug("Connection established")
+            await asyncio.get_event_loop().run_in_executor(None, self.ws_run_forever)
+            logger.debug("Running forever")
 
         except BaseException as error:
             logger.debug(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
@@ -339,7 +367,7 @@ class LiveDataVisualization:
         if self.ws_task:
             self.ws_task.cancel()
         if self.ws_connection:
-            asyncio.ensure_future(self.ws_connection.close())
+            self.ws_connection.close()
             self.ws_connection = None
 
     async def update_job_loop(self) -> None:
