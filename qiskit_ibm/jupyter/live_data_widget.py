@@ -140,9 +140,10 @@ class LiveDataVisualization:
 
     def get_livedata_jobs(self) -> list:
         """Get the live data jobs for the current backend"""
-        total_jobs = self.backend.provider().backend.jobs(limit=0)
-        livedata_jobs = [job for job in total_jobs if getattr(job, "live_data_enabled_", True)]
-        self.job_ids = list(map(lambda x: x.job_id(), livedata_jobs))
+        # total_jobs = self.backend.provider().backend.jobs(limit=0)
+        total_jobs = self.backend.provider().backend.job_ids()
+        livedata_jobs = [job for job in total_jobs if getattr(job, "liveDataEnabled", True)]
+        self.job_ids = list(map(lambda x: x["id"], livedata_jobs))
         return livedata_jobs
 
     def update_websocket_connection(self) -> None:
@@ -306,7 +307,7 @@ class LiveDataVisualization:
         logger.debug("RECEIVE PACKAGE")
         compressed_msg = json.loads(message)
         if compressed_msg["type"] == "live-data":
-            logger.debug(f"📝 ws@job_id #{self.selected_job.job_id()} received a msg!")
+            logger.debug(f"📝 ws@job_id #{self.selected_job['id']} received a msg!")
             result = self.pako_inflate(bytes(compressed_msg["data"]["data"]))
             # Check result type. In the last package it is a list instead a dict.
             if self.ldata_details:
@@ -334,14 +335,10 @@ class LiveDataVisualization:
     async def init_websockets(self) -> None:
         """Init Websockets using Websockets library
 
-        Args:
-
-            job_id (str): id of the selected job
-
         """
         uri: str = (f"{self.backend.provider().credentials.websockets_url}"
-                    f"jobs/{self.selected_job.job_id()}/live_data")
-        logger.debug(f"🔌 ws@job_id #{self.selected_job.job_id()} connecting to {uri}")
+                    f"jobs/{self.selected_job['id']}/live_data")
+        logger.debug(f"🔌 ws@job_id #{self.selected_job['id']} connecting to {uri}")
         this_ws = None
         try:
             # pylint: disable=E1101
@@ -356,9 +353,9 @@ class LiveDataVisualization:
             logger.debug("Running forever")
 
         except BaseException as error:
-            logger.debug(f"💥 ws@job_id #{self.selected_job.job_id()} errored/closed: {error}")
+            logger.debug(f"💥 ws@job_id #{self.selected_job['id']} errored/closed: {error}")
             if self.ws_connection == this_ws:
-                logger.debug(f"🤖 Trying to reconnect ws@job_id #{self.selected_job.job_id()}...")
+                logger.debug(f"🤖 Trying to reconnect ws@job_id #{self.selected_job['id']}...")
                 await self.init_websockets()
 
     def disconnect_ws(self) -> None:
@@ -1118,7 +1115,8 @@ class JobInformationView:
         if not job:
             return
 
-        status = job.status()
+        qiskit_job = self._backend.provider().backend.job(job_id=job['id'])
+        status = qiskit_job.status()
         if status in [JobStatus.RUNNING, JobStatus.DONE]:
             self.show_progress_bar()
         elif status in [JobStatus.VALIDATING, JobStatus.INITIALIZING]:
@@ -1130,7 +1128,7 @@ class JobInformationView:
         else:
             self._progress_bar.reset_progress_bar()
 
-        self.information_view.value = self.job_information_content(job)
+        self.information_view.value = self.job_information_content(qiskit_job)
 
     # Views
     def create_job_information_view(self, job) -> widgets.HTML:
