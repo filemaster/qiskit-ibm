@@ -156,7 +156,7 @@ class Account(RestAdapterBase):
             'order': 'creationDate ' + order,
             'limit': limit,
             'skip': skip,
-            'fields' : {'id': True, 'liveDataEnabled': True}
+            'fields' : {'id': True, 'liveDataEnabled': True, 'creationDate': True}
         }
         if extra_filter:
             query['where'] = extra_filter

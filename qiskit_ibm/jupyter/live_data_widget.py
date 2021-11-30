@@ -141,7 +141,7 @@ class LiveDataVisualization:
     def get_livedata_jobs(self) -> list:
         """Get the live data jobs for the current backend"""
         # total_jobs = self.backend.provider().backend.jobs(limit=0)
-        total_jobs = self.backend.provider().backend.job_ids()
+        total_jobs = self.backend.provider().backend.job_ids(limit=0)
         livedata_jobs = [job for job in total_jobs if getattr(job, "liveDataEnabled", True)]
         self.job_ids = list(map(lambda x: x["id"], livedata_jobs))
         return livedata_jobs

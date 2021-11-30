@@ -353,7 +353,7 @@ class IBMBackendService:
 
         # Retrieve all requested jobs.
         jobs_id_list = self._get_job_ids(api_filter=api_filter, limit=limit,
-                                       skip=skip, descending=descending)
+                                         skip=skip, descending=descending)
 
         return jobs_id_list
 
@@ -483,10 +483,10 @@ class IBMBackendService:
             cur_dt_filter = api_filter.pop('creationDate', {})
             if descending:
                 new_dt_filter = self._update_creation_date_filter(
-                    cur_dt_filter=cur_dt_filter, lte_dt=last_job['creation_date'])
+                    cur_dt_filter=cur_dt_filter, lte_dt=last_job['creationDate'])
             else:
                 new_dt_filter = self._update_creation_date_filter(
-                    cur_dt_filter=cur_dt_filter, gte_dt=last_job['creation_date'])
+                    cur_dt_filter=cur_dt_filter, gte_dt=last_job['creationDate'])
             if not cur_dt_filter:
                 api_filter['creationDate'] = new_dt_filter
             else:
@@ -494,9 +494,9 @@ class IBMBackendService:
                     api_filter, {'and': [{'creationDate': new_dt_filter}, cur_dt_filter]})
 
             if 'id' not in api_filter:
-                api_filter['id'] = {'nin': [last_job['job_id']]}
+                api_filter['id'] = {'nin': [last_job['id']]}
             else:
-                new_id_filter = {'and': [{'id': {'nin': [last_job['job_id']]}},
+                new_id_filter = {'and': [{'id': {'nin': [last_job['id']]}},
                                          {'id': api_filter.pop('id')}]}
                 self._merge_logical_filters(api_filter, new_id_filter)
 
