@@ -139,8 +139,10 @@ class LiveDataVisualization:
             self.update_websocket_connection()
 
     def get_livedata_jobs(self) -> list:
-        """Get the live data jobs for the current backend"""
-        # total_jobs = self.backend.provider().backend.jobs(limit=0)
+        """Get a list of jobs that include LiveData enabled for the current backend
+        The list received includes objects with the jobs' info is a dict composed
+        by the fields: 'id', 'liveDataEnabled', 'creationDate'.
+        The objects included in the list are not same as a Qiskit Job"""
         total_jobs = self.backend.provider().backend.job_ids(limit=0)
         livedata_jobs = [job for job in total_jobs if getattr(job, "liveDataEnabled", True)]
         self.job_ids = list(map(lambda x: x["id"], livedata_jobs))
@@ -1109,12 +1111,14 @@ class JobInformationView:
 
         Args:
 
-            job (Qiskit Job): seleted job
+            job (Dict with the fields 'id', 'liveDataEnabled' and 'creationDate'): the job to select
 
         """
         if not job:
             return
 
+        # To get all the information needed, we request the job details to the API
+        # The information returned is the type of QiskitJob
         qiskit_job = self._backend.provider().backend.job(job_id=job['id'])
         status = qiskit_job.status()
         if status in [JobStatus.RUNNING, JobStatus.DONE]:
