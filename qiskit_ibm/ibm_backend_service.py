@@ -269,9 +269,8 @@ class IBMBackendService:
             job_tags: Optional[List[str]] = None,
             job_tags_operator: Optional[str] = "OR",
             descending: bool = True,
-            ignore_composite_jobs: bool = False,
     ) -> List[IBMJob]:
-        """Return a list of jobs, subject to optional filtering.
+        """Return a list of job IDs, subject to optional filtering.
 
         Retrieve jobs that match the given filters and paginate the results
         if desired. Note that the server has a limit for the number of jobs
@@ -305,9 +304,6 @@ class IBMBackendService:
                       of the tags specified in ``job_tags`` to be included.
             descending: If ``True``, return the jobs in descending order of the job
                 creation date (i.e. newest first) until the limit is reached.
-            ignore_composite_jobs: If ``True``, sub-jobs of a single
-                :class:`~qiskit_ibm.job.IBMCompositeJob` will be
-                returned as individual jobs instead of merged together.
 
         Returns:
             A list of ``IBMJob`` instances.
@@ -437,7 +433,7 @@ class IBMBackendService:
             skip: int = 0,
             descending: bool = True
     ) -> List:
-        """Retrieve the requested number of jobs from the server using pagination.
+        """Retrieve the requested number of jobs IDs from the server using pagination.
 
         Args:
             api_filter: Filter used for querying.
@@ -455,7 +451,7 @@ class IBMBackendService:
         initial_filter = copy.deepcopy(api_filter)
 
         while True:
-            job_page = self._provider._api_client.list_jobs_id(
+            job_page = self._provider._api_client.list_jobs_ids(
                 limit=current_page_limit, skip=skip, descending=descending,
                 extra_filter=api_filter)
             if logger.getEffectiveLevel() is logging.DEBUG:

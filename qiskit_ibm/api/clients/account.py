@@ -174,14 +174,14 @@ class AccountClient(BaseClient):
         return self.account_api.jobs(limit=limit, skip=skip, descending=descending,
                                      extra_filter=extra_filter)
 
-    def list_jobs_id(
+    def list_jobs_ids(
             self,
             limit: int = 10,
             skip: int = 0,
             descending: bool = True,
             extra_filter: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
-        """Return a list of job id, with filtering and pagination.
+        """Return a list including job ids and other information, with filtering and pagination.
 
         Args:
             limit: Maximum number of items to return.
@@ -192,7 +192,7 @@ class AccountClient(BaseClient):
         Returns:
             A list of job data.
         """
-        return self.account_api.jobs_id(limit=limit, skip=skip, descending=descending,
+        return self.account_api.jobs_ids(limit=limit, skip=skip, descending=descending,
                                         extra_filter=extra_filter)
 
     def job_submit(

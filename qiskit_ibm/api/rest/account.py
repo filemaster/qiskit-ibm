@@ -130,14 +130,14 @@ class Account(RestAdapterBase):
             map_job_response(job_data)
         return data
 
-    def jobs_id(
+    def jobs_ids(
             self,
             limit: int = 10,
             skip: int = 0,
             descending: bool = True,
             extra_filter: Dict[str, Any] = None
     ) -> List[Dict[str, Any]]:
-        """Return a list of job ids.
+        """Return a list of job ids plus their liveDataEnabled flag and their creationDate field.
 
         Args:
             limit: Maximum number of items to return.
