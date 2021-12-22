@@ -34,7 +34,7 @@ class Account(RestAdapterBase):
         'backends': '/devices/v/1',
         'jobs': '/Jobs',
         'jobs_status': '/Jobs/status/v/1',
-        'jobs_id':'/Jobs/v/1',
+        'jobs_id': '/Jobs/v/1',
     }
 
     TEMPLATE_IBM_HUBS = '/Network/{hub}/Groups/{group}/Projects/{project}'
@@ -156,7 +156,7 @@ class Account(RestAdapterBase):
             'order': 'creationDate ' + order,
             'limit': limit,
             'skip': skip,
-            'fields' : {'id': True, 'liveDataEnabled': True, 'creationDate': True}
+            'fields': {'id': True, 'liveDataEnabled': True, 'creationDate': True}
         }
         if extra_filter:
             query['where'] = extra_filter

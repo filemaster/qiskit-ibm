@@ -192,8 +192,9 @@ class AccountClient(BaseClient):
         Returns:
             A list of job data.
         """
-        return self.account_api.jobs_ids(limit=limit, skip=skip, descending=descending,
-                                        extra_filter=extra_filter)
+        return self.account_api.jobs_ids(
+            limit=limit, skip=skip, descending=descending, extra_filter=extra_filter
+        )
 
     def job_submit(
             self,
